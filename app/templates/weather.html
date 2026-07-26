@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+
+{% block title %}Hava Durumu Analizi{% endblock %}
+
+{% block extra_head %}
+<style>
+    .weather-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+    }
+
+    .weather-hero {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .weather-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .field label {
+        display: block;
+        font-weight: 700;
+        margin-bottom: 0.45rem;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+        width: 100%;
+        padding: 0.8rem 0.95rem;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #fff;
+        font: inherit;
+    }
+
+    .weather-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .muted {
+        color: var(--muted);
+    }
+
+    .decision-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.55rem 1rem;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .decision-uygun {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .decision-riskli {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .decision-degil {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .stat-box {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1rem;
+    }
+
+    .stat-box strong {
+        display: block;
+        font-size: 1.15rem;
+        margin-top: 0.35rem;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .spinner {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        border: 3px solid rgba(37, 99, 235, 0.2);
+        border-top-color: #2563eb;
+        animation: spin 0.8s linear infinite;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 0.45rem;
+    }
+
+    .source-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .source-item {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+        background: #f8fafc;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="card weather-hero">
+    <div>
+        <h1 style="margin: 0 0 0.5rem;">🌤 Drone Hava Durumu ve Uçuş Kararı</h1>
+        <p class="muted" style="margin: 0;">Şehir adı veya koordinat girerek anlık hava raporu, saatlik uçuş penceresi ve 12 aylık mevsimsel uygunluk analizi alın.</p>
+    </div>
+
+    <form id="weather-form">
+        <div class="weather-form-grid">
+            <div class="field" style="grid-column: span 2;">
+                <label for="location">Konum / Şehir</label>
+                <input id="location" name="location" type="text" placeholder="Örn. İstanbul, Ankara veya İzmir" />
+            </div>
+            <div class="field">
+                <label for="lat">Enlem</label>
+                <input id="lat" name="lat" type="number" step="any" placeholder="41.0082" />
+            </div>
+            <div class="field">
+                <label for="lon">Boylam</label>
+                <input id="lon" name="lon" type="number" step="any" placeholder="28.9784" />
+            </div>
+            <div class="field">
+                <label for="date-offset">Uçuş Günü</label>
+                <select id="date-offset" name="date_offset">
+                    <option value="0">Bugün</option>
+                    <option value="1">Yarın</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="start-hour">Başlangıç Saati</label>
+                <input id="start-hour" name="start_hour" type="number" min="0" max="23" value="8" />
+            </div>
+            <div class="field">
+                <label for="end-hour">Bitiş Saati</label>
+                <input id="end-hour" name="end_hour" type="number" min="0" max="23" value="18" />
+            </div>
+        </div>
+
+        <div class="weather-actions">
+            <button class="btn-primary" type="submit">Analizi Başlat</button>
+            <button class="btn-secondary" type="button" id="clear-btn">Temizle</button>
+        </div>
+    </form>
+</section>
+
+<div id="loading" class="card hidden">
+    <span class="spinner"></span> Veriler alınıyor, lütfen bekleyin...
+</div>
+
+<div id="error-box" class="alert hidden"></div>
+
+<section id="results" class="hidden">
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+            <div>
+                <h2 id="result-location" style="margin:0 0 0.35rem;"></h2>
+                <p id="result-meta" class="muted" style="margin:0;"></p>
+            </div>
+            <span id="decision-badge" class="decision-badge"></span>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box"><span class="muted">Güven Skoru</span><strong id="confidence-value">-</strong></div>
+            <div class="stat-box"><span class="muted">Rapor Kimliği</span><strong id="report-id">-</strong></div>
+            <div class="stat-box"><span class="muted">Rüzgar Trendi</span><strong id="wind-trend">-</strong></div>
+            <div class="stat-box"><span class="muted">Karar Özeti</span><strong id="decision-summary">-</strong></div>
+        </div>
+    </div>
+
+    <div class="weather-grid">
+        <div class="card">
+            <h3 style="margin-top:0;">Parametreler</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Parametre</th><th>Değer</th><th>Durum</th></tr>
+                    </thead>
+                    <tbody id="parameters-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0;">Kaynaklar</h3>
+            <div id="sources-list" class="source-list"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top:0;">Saatlik Uçuş Penceresi</h3>
+        <p id="best-window" class="muted"></p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Saat</th><th>Karar</th><th>Rüzgar</th><th>Sıcaklık</th><th>Nem</th><th>Görüş</th><th>Bulut Tabanı</th><th>Yağış</th>
+                    </tr>
+                </thead>
+                <tbody id="flight-plan-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top:0;">12 Aylık Mevsimsel Analiz</h3>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Ay</th><th>Ortalama Rüzgar</th><th>Ortalama Görüş</th><th>Uygunluk Skoru</th><th>Karar</th></tr>
+                </thead>
+                <tbody id="seasonal-body"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<script>
+const form = document.getElementById('weather-form');
+const clearBtn = document.getElementById('clear-btn');
+const loading = document.getElementById('loading');
+const errorBox = document.getElementById('error-box');
+const results = document.getElementById('results');
+
+function decisionText(value) {
+    if (value === 'UYGUN_DEGIL') return 'UYGUN DEĞİL';
+    if (value === 'RISKLI') return 'RİSKLİ';
+    return value || '-';
+}
+
+function decisionClass(value) {
+    if (value === 'UYGUN') return 'decision-uygun';
+    if (value === 'RISKLI') return 'decision-riskli';
+    return 'decision-degil';
+}
+
+function precipitationLabel(level) {
+    return ({0: 'Yok', 1: 'Hafif', 2: 'Orta/Şiddetli'})[level] || '-';
+}
+
+function setLoading(state) {
+    loading.classList.toggle('hidden', !state);
+}
+
+function showError(message) {
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
+}
+
+function clearError() {
+    errorBox.textContent = '';
+    errorBox.classList.add('hidden');
+}
+
+function readPayload() {
+    const location = document.getElementById('location').value.trim();
+    const latRaw = document.getElementById('lat').value.trim();
+    const lonRaw = document.getElementById('lon').value.trim();
+    const payload = {};
+    if (location) payload.location = location;
+    if (latRaw) payload.lat = Number(latRaw);
+    if (lonRaw) payload.lon = Number(lonRaw);
+    return payload;
+}
+
+async function postJson(url, payload) {
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(data.detail || 'İstek başarısız oldu.');
+    }
+    return data;
+}
+
+function renderReport(report) {
+    document.getElementById('result-location').textContent = report.location;
+    document.getElementById('result-meta').textContent = `${report.lat.toFixed(4)}, ${report.lon.toFixed(4)} • ${new Date(report.created_at).toLocaleString('tr-TR')}`;
+    const badge = document.getElementById('decision-badge');
+    badge.textContent = decisionText(report.decision);
+    badge.className = `decision-badge ${decisionClass(report.decision)}`;
+    document.getElementById('confidence-value').textContent = `${report.confidence ?? report.confidence_score ?? '-'}%`;
+    document.getElementById('report-id').textContent = `#${report.report_id}`;
+    document.getElementById('wind-trend').textContent = report.wind_trend || '-';
+    document.getElementById('decision-summary').textContent = report.summary || report.decision_detail || '-';
+
+    document.getElementById('parameters-body').innerHTML = report.parameters.map((item) => `
+        <tr>
+            <td>${item.name}</td>
+            <td>${item.value}</td>
+            <td><span class="decision-badge ${decisionClass(item.decision)}">${decisionText(item.decision)}</span></td>
+        </tr>
+    `).join('');
+
+    document.getElementById('sources-list').innerHTML = report.sources.map((source) => `
+        <div class="source-item">
+            <strong>${source.source}</strong>
+            <div class="muted" style="margin-top:0.45rem;">
+                Rüzgar: ${source.wind_speed_knots.toFixed(1)} kt • Nem: ${source.humidity_pct.toFixed(0)}% • Görüş: ${source.visibility_km.toFixed(1)} km
+            </div>
+            <div class="muted" style="margin-top:0.35rem;">
+                Sıcaklık: ${source.temperature_c.toFixed(1)} °C • Bulut Tabanı: ${source.cloud_base_ft == null ? 'N/A' : source.cloud_base_ft.toFixed(0) + ' ft'} • Yağış: ${precipitationLabel(source.precipitation_level)}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderFlightPlan(plan) {
+    const bestWindow = plan.best_window
+        ? `En iyi pencere: ${plan.best_window.start_hour}:00 - ${plan.best_window.end_hour}:00 (${plan.best_window.length} saat)`
+        : 'Belirgin bir uygun pencere bulunamadı.';
+    document.getElementById('best-window').textContent = bestWindow;
+    document.getElementById('flight-plan-body').innerHTML = plan.hours.map((hour) => `
+        <tr>
+            <td>${String(hour.hour).padStart(2, '0')}:00</td>
+            <td><span class="decision-badge ${decisionClass(hour.decision)}">${decisionText(hour.decision)}</span></td>
+            <td>${hour.wind_kt.toFixed(1)} kt</td>
+            <td>${hour.temperature_c.toFixed(1)} °C</td>
+            <td>${hour.humidity_pct.toFixed(0)}%</td>
+            <td>${hour.visibility_km.toFixed(1)} km</td>
+            <td>${hour.cloud_base_ft == null ? 'N/A' : hour.cloud_base_ft.toFixed(0) + ' ft'}</td>
+            <td>${precipitationLabel(hour.precipitation_level)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderSeasonal(seasonal) {
+    document.getElementById('seasonal-body').innerHTML = seasonal.months.map((month) => `
+        <tr>
+            <td>${month.month}</td>
+            <td>${month.avg_wind_kt.toFixed(1)} kt</td>
+            <td>${month.avg_visibility_km.toFixed(1)} km</td>
+            <td>${month.suitability_score}</td>
+            <td><span class="decision-badge ${decisionClass(month.decision)}">${decisionText(month.decision)}</span></td>
+        </tr>
+    `).join('');
+}
+
+form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearError();
+    results.classList.add('hidden');
+
+    const payload = readPayload();
+    if (!payload.location && (payload.lat == null || payload.lon == null || Number.isNaN(payload.lat) || Number.isNaN(payload.lon))) {
+        showError('Lütfen şehir adı veya geçerli koordinatlar girin.');
+        return;
+    }
+
+    const lat = payload.lat;
+    const lon = payload.lon;
+    const dateOffset = Number(document.getElementById('date-offset').value);
+    const startHour = Number(document.getElementById('start-hour').value);
+    const endHour = Number(document.getElementById('end-hour').value);
+
+    setLoading(true);
+    try {
+        const report = await postJson('/api/v1/weather/report', payload);
+        const sharedCoords = { lat: report.lat, lon: report.lon };
+        const [flightPlan, seasonal] = await Promise.all([
+            postJson('/api/v1/weather/flight-plan', { ...sharedCoords, date_offset: dateOffset, start_hour: startHour, end_hour: endHour }),
+            postJson('/api/v1/weather/seasonal', sharedCoords)
+        ]);
+        renderReport(report);
+        renderFlightPlan(flightPlan);
+        renderSeasonal(seasonal);
+        results.classList.remove('hidden');
+    } catch (error) {
+        showError(error.message || 'Beklenmeyen bir hata oluştu.');
+    } finally {
+        setLoading(false);
+    }
+});
+
+clearBtn.addEventListener('click', () => {
+    form.reset();
+    clearError();
+    results.classList.add('hidden');
+});
+</script>
+{% endblock %}
