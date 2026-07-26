@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t("flight_detail.title") }} - Flight Management{% endblock %}
+{% block main_class %}page flight-detail-page{% endblock %}
+
+{% block extra_head %}
+<style>
+body {
+    background:
+        linear-gradient(rgba(2,6,23,0.42), rgba(2,6,23,0.42)),
+        url("/static/images/wolf.png") no-repeat center center / cover;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+.topbar {
+    background: transparent !important;
+    backdrop-filter: none;
+    border-bottom: none;
+}
+.nav a,
+.brand,
+.user-badge,
+.lang-label {
+    color: #fff !important;
+}
+.page.flight-detail-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    min-height: calc(100vh - 88px);
+    padding: 2.2rem 1.1rem 4rem 1.1rem;
+}
+.glass-card {
+    background: rgba(15, 23, 42, 0.62);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 26px;
+    padding: 1.4rem;
+    margin-bottom: 1.1rem;
+    box-shadow: 0 20px 70px rgba(2, 6, 23, 0.32);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    color: #fff;
+}
+.summary-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+.summary-title {
+    font-size: 2rem;
+    font-weight: 800;
+}
+.summary-date {
+    color: #cbd5e1;
+    font-weight: 600;
+}
+.route {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.route-airport {
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+.route-arrow {
+    color: #38bdf8;
+    font-size: 1.7rem;
+}
+.times-grid,
+.crew-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+.meta-box {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.07);
+    padding: 0.9rem 1rem;
+}
+.meta-label {
+    display: block;
+    color: #bae6fd;
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+}
+.meta-value {
+    font-weight: 700;
+}
+.section-title {
+    margin: 0 0 0.9rem 0;
+    font-size: 1.3rem;
+}
+.quick-actions,
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.quick-actions form {
+    margin: 0;
+}
+.btn-primary,
+.btn-secondary {
+    min-height: 46px;
+    border-radius: 999px !important;
+}
+.assign-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+.field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #dbeafe;
+    font-weight: 700;
+}
+.field select,
+.note-form textarea {
+    width: 100%;
+    padding: 0.8rem 0.95rem;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: rgba(255,255,255,0.09);
+    color: #fff;
+}
+.note-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+.note-form textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+.notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-top: 1rem;
+}
+.note-item {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.07);
+    padding: 0.8rem 0.95rem;
+}
+.note-meta {
+    color: #bae6fd;
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+}
+.note-text {
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+@media (max-width: 900px) {
+    .times-grid,
+    .crew-grid,
+    .assign-form {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div class="summary-top">
+        <div>
+            <div class="summary-title">{{ flight.flight_no }}</div>
+            <div class="summary-date">{{ t("flight_detail.date") }}: {{ flight.flight_date.strftime('%d.%m.%Y') }}</div>
+        </div>
+    </div>
+
+    <div class="route">
+        <span class="route-airport">{{ flight.departure_airport }}</span>
+        <span class="route-arrow">→</span>
+        <span class="route-airport">{{ flight.arrival_airport }}</span>
+    </div>
+
+    <div class="times-grid">
+        <div class="meta-box">
+            <span class="meta-label">{{ t("flight_detail.planned_departure") }}</span>
+            <span class="meta-value">{{ flight.sched_dep.strftime('%d.%m.%Y %H:%M') }}</span>
+        </div>
+        <div class="meta-box">
+            <span class="meta-label">{{ t("flight_detail.planned_arrival") }}</span>
+            <span class="meta-value">{{ flight.sched_arr.strftime('%d.%m.%Y %H:%M') }}</span>
+        </div>
+        <div class="meta-box">
+            <span class="meta-label">{{ t("flight_detail.actual_departure") }}</span>
+            <span class="meta-value">{{ flight.actual_dep.strftime('%d.%m.%Y %H:%M') if flight.actual_dep else t("flight_detail.not_set") }}</span>
+        </div>
+        <div class="meta-box">
+            <span class="meta-label">{{ t("flight_detail.actual_arrival") }}</span>
+            <span class="meta-value">{{ flight.actual_arr.strftime('%d.%m.%Y %H:%M') if flight.actual_arr else t("flight_detail.not_set") }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card">
+    <h3 class="section-title">{{ t("flight_detail.crew") }}</h3>
+    <div class="crew-grid">
+        <div class="meta-box">
+            <span class="meta-label">{{ t("flight_detail.current_captain") }}</span>
+            <span class="meta-value">
+                {% if captain_assignment and captain_assignment.user %}
+                    {{ captain_assignment.user.username }}
+                {% elif captain_assignment %}
+                    {{ t("flight_detail.unknown_user") }} #{{ captain_assignment.user_id }}
+                {% else %}
+                    {{ t("flight_detail.not_set") }}
+                {% endif %}
+            </span>
+        </div>
+        <div class="meta-box">
+            <span class="meta-label">{{ t("flight_detail.current_first_officer") }}</span>
+            <span class="meta-value">
+                {% if first_officer_assignment and first_officer_assignment.user %}
+                    {{ first_officer_assignment.user.username }}
+                {% elif first_officer_assignment %}
+                    {{ t("flight_detail.unknown_user") }} #{{ first_officer_assignment.user_id }}
+                {% else %}
+                    {{ t("flight_detail.not_set") }}
+                {% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card">
+    <h3 class="section-title">{{ t("flight_detail.assignments") }}</h3>
+    <form method="post" action="/flight-detail/{{ flight.id }}/crew" class="assign-form">
+        <div class="field">
+            <label for="captain_user_id">{{ t("flight_detail.captain") }}</label>
+            <select id="captain_user_id" name="captain_user_id" required>
+                <option value="">{{ t("flight_detail.select_user") }}</option>
+                {% for crew_user in crew_candidates %}
+                <option value="{{ crew_user.id }}" {% if captain_assignment and captain_assignment.user_id == crew_user.id %}selected{% endif %}>{{ crew_user.username }} ({{ crew_user.role }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="first_officer_user_id">{{ t("flight_detail.first_officer") }}</label>
+            <select id="first_officer_user_id" name="first_officer_user_id" required>
+                <option value="">{{ t("flight_detail.select_user") }}</option>
+                {% for crew_user in crew_candidates %}
+                <option value="{{ crew_user.id }}" {% if first_officer_assignment and first_officer_assignment.user_id == crew_user.id %}selected{% endif %}>{{ crew_user.username }} ({{ crew_user.role }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-actions" style="grid-column: 1 / -1;">
+            <button type="submit" class="btn-primary">{{ t("flight_detail.save_assignments") }}</button>
+        </div>
+    </form>
+</div>
+
+<div class="glass-card">
+    <h3 class="section-title">{{ t("flight_detail.quick_actions") }}</h3>
+    <div class="quick-actions">
+        <form method="post" action="/flight-detail/{{ flight.id }}/mark-departure">
+            <button type="submit" class="btn-secondary" {% if flight.actual_dep %}disabled{% endif %}>{{ t("flight_detail.mark_departure_now") }}</button>
+        </form>
+        <form method="post" action="/flight-detail/{{ flight.id }}/mark-arrival">
+            <button type="submit" class="btn-secondary" {% if flight.actual_arr %}disabled{% endif %}>{{ t("flight_detail.mark_arrival_now") }}</button>
+        </form>
+    </div>
+</div>
+
+<div class="glass-card">
+    <h3 class="section-title">{{ t("flight_detail.notes") }}</h3>
+    <form method="post" action="/flight-detail/{{ flight.id }}/notes" class="note-form">
+        <label for="note_text">{{ t("flight_detail.new_note") }}</label>
+        <textarea id="note_text" name="note" placeholder="{{ t('flight_detail.note_placeholder') }}" required></textarea>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">{{ t("flight_detail.add_note") }}</button>
+        </div>
+    </form>
+
+    {% if flight_notes and flight_notes|length > 0 %}
+    <div class="notes-list">
+        {% for item in flight_notes %}
+        <div class="note-item">
+            <div class="note-meta">
+                {% if item.user %}
+                    {{ item.user.username }}
+                {% else %}
+                    {{ t("flight_detail.unknown_user") }} #{{ item.user_id }}
+                {% endif %}
+                • {{ item.created_at.strftime('%d.%m.%Y %H:%M') if item.created_at else '-' }}
+            </div>
+            <div class="note-text">{{ item.note }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="meta-box">{{ t("flight_detail.no_notes") }}</div>
+    {% endif %}
+</div>
+{% endblock %}
