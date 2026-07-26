@@ -17,7 +17,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 
 from app.database import Base, SessionLocal, engine, get_db
 from app.models import CrewAssignment, Flight, FlightNote, MaintenanceLog, User
-from app.routers import admin, auth, flights, reports
+from app.routers import admin, auth, decideflight, flights, reports
 from app.routers.weather import router as weather_router
 from app.routers.auth import pwd_context
 from app.seed import seed_admin
@@ -584,6 +584,7 @@ app.include_router(admin.router)
 app.include_router(flights.router)
 app.include_router(reports.router)
 app.include_router(weather_router)
+app.include_router(decideflight.router)
 
 
 @app.get("/", include_in_schema=False)
