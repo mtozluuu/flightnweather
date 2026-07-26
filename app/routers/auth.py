@@ -49,12 +49,6 @@ def me(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.get("/me")
-def me(request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request)
-    return {"id": user.id, "username": user.username, "role": user.role}
-
-
 @router.post("/change-password")
 def change_password(
     body: ChangePasswordRequest,
